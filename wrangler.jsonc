@@ -1,0 +1,7 @@
+{
+  "$schema":"./node_modules/wrangler/config-schema.json",
+  "name":"ttcbruck-pongbot-stage",
+  "pages_build_output_dir":"./dist",
+  "d1_databases":[{"binding":"DB","database_name":"pongbot-stage-db","database_id":"REPLACE_WITH_STAGE_D1_DATABASE_ID"}],
+  "vars":{"ACCESS_DOMAIN":"https://REPLACE_WITH_YOUR_TEAM.cloudflareaccess.com","ACCESS_AUD":"REPLACE_WITH_STAGE_ACCESS_AUD"}
+}

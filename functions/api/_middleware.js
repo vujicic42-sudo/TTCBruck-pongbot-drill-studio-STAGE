@@ -1,0 +1,2 @@
+import access from'@cloudflare/pages-plugin-cloudflare-access';
+export async function onRequest(context){if(!context.env.ACCESS_DOMAIN||!context.env.ACCESS_AUD)return new Response(JSON.stringify({error:'Cloudflare Access API validation is not configured.'}),{status:503,headers:{'content-type':'application/json'}});return access({domain:context.env.ACCESS_DOMAIN,aud:context.env.ACCESS_AUD})(context)}

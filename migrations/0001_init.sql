@@ -1,0 +1,6 @@
+PRAGMA foreign_keys=ON;
+CREATE TABLE IF NOT EXISTS profiles(id INTEGER PRIMARY KEY AUTOINCREMENT,access_subject TEXT NOT NULL UNIQUE,email TEXT NOT NULL UNIQUE,display_name TEXT NOT NULL,language TEXT NOT NULL DEFAULT 'ENG',created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS drills(id TEXT PRIMARY KEY,profile_id INTEGER NOT NULL,name TEXT NOT NULL,level TEXT NOT NULL,focus TEXT NOT NULL DEFAULT '',origin TEXT NOT NULL,drill_json TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,FOREIGN KEY(profile_id)REFERENCES profiles(id)ON DELETE CASCADE);
+CREATE INDEX IF NOT EXISTS idx_drills_profile ON drills(profile_id);
+CREATE TABLE IF NOT EXISTS saved_filters(id TEXT PRIMARY KEY,profile_id INTEGER NOT NULL,name TEXT NOT NULL,filter_json TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,FOREIGN KEY(profile_id)REFERENCES profiles(id)ON DELETE CASCADE);
+CREATE INDEX IF NOT EXISTS idx_filters_profile ON saved_filters(profile_id);
