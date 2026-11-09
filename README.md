@@ -1,12 +1,9 @@
-# TTCBruck Pongbot Drill Studio STAGE v1.14
+# TTCBruck Pongbot Drill Studio STAGE v1.15
 
-UI recovery release based on v1.13 cloud profiles:
-- dark readable select lists and options;
-- copy/delete only in Edit drill;
-- restored half-table visual with left/centre/right zones and graphical ball flow;
-- compact Delete ball button;
-- Team session preview restored;
-- Time/Ball count control centered;
-- Connect Bluetooth and Disconnect moved to Settings;
-- Coaching profile and Access logout retained;
-- D1 profile storage and Save retained.
+Responsive German layout refinement based on v1.14:
+- German labels wrap safely instead of overlapping controls.
+- Editor fields expand for long text such as Geschwindigkeit/Schärfe/Länge and BPM - Bälle-Pro-Minute.
+- Filter, level, playstyle and playing-hand selects have responsive widths.
+- Metadata fields Name, Trainingsziel and Level reflow cleanly.
+- Buttons wrap long German captions without covering neighboring controls.
+- Cloud profiles, D1 saving, Access logout, Bluetooth settings, preview and visual overview are unchanged.
