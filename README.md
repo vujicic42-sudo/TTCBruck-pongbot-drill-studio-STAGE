@@ -18,3 +18,4 @@ Cloud-profile release using Cloudflare Pages Functions, Cloudflare Access identi
 - Imported/created/edited drills save explicitly to the authenticated coach's D1 profile.
 - Custom filters can be named, saved, and restored per coach.
 - CSV remains available for import/export compatibility.
+Cloudflare STAGE v1.13 deployment trigger.
