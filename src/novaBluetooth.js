@@ -42,13 +42,18 @@ export class NovaBluetooth {
       throw new Error('Robot GATT connection is not active');
     }
     const payload = data instanceof Uint8Array ? data : new Uint8Array(data);
-    this.emit('tx', hex(payload));
+    this.emit('tx', `${hex(payload)} (state: ${this.handshakeState})`);
     // Match the reference application's serialized GATT writes.
     this.writeLock = this.writeLock.then(() => {
       if (!this.writeCharacteristic || !this.device?.gatt?.connected) {
         throw new Error('Robot disconnected before Bluetooth write');
       }
-      return this.writeCharacteristic.writeValue(payload);
+      return this.writeCharacteristic.writeValue(payload).then(() => {
+        this.emit('tx-ok', `${hex(payload)} (state: ${this.handshakeState})`);
+      });
+    }).catch(error => {
+      this.emit('write-error', `${error.message} (state: ${this.handshakeState})`);
+      throw error;
     });
     return this.writeLock;
   }
@@ -57,7 +62,7 @@ export class NovaBluetooth {
     const view = event.target.value;
     const data = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
     const packetHex = [...data].map(value => value.toString(16).padStart(2, '0')).join('');
-    this.emit('rx', hex(data));
+    this.emit('rx', `${hex(data)} (state before: ${this.handshakeState}, ${data.length} bytes)`);
 
     // This is deliberately the same continuous notification-driven handshake
     // used by the working Nova Drill Control application. Do not consume one
@@ -80,16 +85,20 @@ export class NovaBluetooth {
           response.set([0x08, 0x20, 0, 0]);
           response.set(encoder.encode(digest), 3);
           this.handshakeState = 'auth_1';
+          this.emit('handshake-stage', 'Handshake challenge received; sending authentication response');
           this.write(response).catch(error => this.failConnection(error));
         }
       } else if (this.handshakeState === 'auth_1') {
         this.handshakeState = 'auth_2';
+        this.emit('handshake-stage', 'Authentication stage 1 received; sending [1,0,0]');
         this.write(bytes(1, 0, 0)).catch(error => this.failConnection(error));
       } else if (this.handshakeState === 'auth_2') {
         this.handshakeState = 'auth_3';
+        this.emit('handshake-stage', 'Authentication stage 2 received; sending [2,0,0]');
         this.write(bytes(2, 0, 0)).catch(error => this.failConnection(error));
       } else if (this.handshakeState === 'auth_3') {
         this.handshakeState = 'ready';
+        this.emit('handshake-stage', 'Authentication stage 3 received; sending final ready command');
         this.write(bytes(0x80, 1, 0, 0)).then(() => {
           if (this.handshakeState !== 'ready' || !this.device?.gatt?.connected) return;
           this.authenticated = true;
@@ -122,10 +131,13 @@ export class NovaBluetooth {
     this.resolveConnect = null;
     this.rejectConnect = null;
     this.connectPromise = null;
-    reject?.(error instanceof Error ? error : new Error(String(error)));
+    const normalized = error instanceof Error ? error : new Error(String(error));
+    this.emit('error', `${normalized.message} (handshake stage: ${this.handshakeState})`);
+    reject?.(normalized);
   }
 
   onDisconnected() {
+    this.emit('gatt-disconnect', `GATT server disconnected; state was ${this.handshakeState}; authenticated=${this.authenticated}`);
     const wasConnecting = Boolean(this.rejectConnect);
     this.authenticated = false;
     this.handshakeState = 'disconnected';
