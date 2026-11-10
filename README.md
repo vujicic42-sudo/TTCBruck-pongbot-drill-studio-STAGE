@@ -15,3 +15,7 @@ Role-based administration for cloud coaching profiles.
 
 ## Required migration
 Run `migrations/0002_admin_roles.sql` once in `pongbot-stage-db` before deploying v1.16.
+
+## v1.16.1 Bluetooth discovery fix
+
+The chooser now uses `acceptAllDevices: true` with the Nova service in `optionalServices`. Some Nova S Pro units do not advertise the custom service UUID in their BLE advertising packet, so the former service-only filter could hide a powered-on robot completely. Connection cleanup, notification waiter cleanup, selection diagnostics, and non-Nova-device errors were also improved. No cloud-profile, admin, D1, UI, timer, count, or drill behavior was changed.

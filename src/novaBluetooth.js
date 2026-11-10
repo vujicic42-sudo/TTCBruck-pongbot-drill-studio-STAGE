@@ -1,1 +1,187 @@
-import SparkMD5 from'spark-md5';const S='02f00000-0000-0000-0000-00000000fe00',W='02f0ff01-0000-0000-0000-00000000fe00',N='02f0ff02-0000-0000-0000-00000000fe00',SALT='Mjgx1jAwXDBaMFcxCz3JBgNVBAYT4kJF7Rkw',E=new TextEncoder(),D=new TextDecoder(),B=(...x)=>new Uint8Array(x.flat()),H=a=>[...a].map(x=>x.toString(16).padStart(2,'0')).join(' ');export class NovaBluetooth{constructor(cb){this.cb=cb;this.q=[]}emit(type,message){this.cb({type,message})}ok(){return!!navigator.bluetooth&&isSecureContext}wait(){return new Promise((r,j)=>{const t=setTimeout(()=>j(Error('Robot notification timeout')),8000);this.q.push(d=>{clearTimeout(t);r(d)})})}async write(d){this.emit('tx',H(d));if(!this.w)throw Error('Robot not connected');await this.w.writeValue(d)}async step(d){await this.write(d);return this.wait()}async connect(){if(!this.ok())throw Error('Web Bluetooth requires Chrome or Edge on HTTPS');this.dev=await navigator.bluetooth.requestDevice({filters:[{services:[S]}]});this.dev.addEventListener('gattserverdisconnected',()=>this.reset());const server=await this.dev.gatt.connect(),service=await server.getPrimaryService(S);this.w=await service.getCharacteristic(W);this.n=await service.getCharacteristic(N);await this.n.startNotifications();this.n.addEventListener('characteristicvaluechanged',e=>{const d=new Uint8Array(e.target.value.buffer);this.emit('rx',H(d));this.q.shift()?.(d)});const a=await this.step(B(7,0,0,0)),serial=D.decode(a.slice(6,18)).replace(/\0/g,''),code=D.decode(a.slice(18)).replace(/\0/g,''),salt=[...serial].map(c=>SALT[c.charCodeAt(0)%36]).join(''),hash=SparkMD5.hash(serial+salt+code);await this.step(B(8,32,0,...E.encode(hash)));await this.step(B(1,0,0));await this.step(B(2,0,0));await this.write(B(128,1,0,0));this.auth=true;this.emit('connected',this.dev.name||'Nova S Pro')}rpm(b){const s=(b.type==='back'?-1:1)*Math.abs(+b.spin);return[Math.max(400,Math.min(7500,Math.round(970+630.5*b.speed+342*s))),Math.max(400,Math.min(7500,Math.round(970+630.5*b.speed-342*s)))]}pack(x){const b=new ArrayBuffer(24),v=new DataView(b),[t,d]=this.rpm(x);v.setUint32(0,t,true);v.setUint32(4,d,true);v.setFloat32(8,(+x.height+50)/150*50-20,true);v.setFloat32(12,(+x.drop+10)/20*44-22,true);v.setFloat32(16,+x.bpm/100+.5,true);v.setUint32(20,+x.reps||1,true);return new Uint8Array(b)}packet(drill,o){let balls=drill.balls.map(x=>({...x})),mode=0,value=Math.max(1,Math.min(10,+o.minutes||1));if(o.mode==='balls'){const target=Math.max(1,Math.min(999,+o.ballCount||1)),cycles=Math.max(1,Math.ceil(target/balls.length));balls=balls.map(x=>({...x,reps:1}));mode=1;value=cycles}const p=balls.flatMap(x=>[...this.pack(x)]);return B(129,4+p.length,mode,value&255,(value>>8)&255,0,p)}async start(d,o){if(!this.auth)throw Error('Connect robot first');await this.write(this.packet(d,o));this.emit('started',d.name)}pause(){return this.write(B(128,1,0,2))}resume(){return this.write(B(128,1,0,3))}stop(){return this.write(B(128,1,0,1))}async reset(){this.auth=false;try{this.dev?.gatt?.disconnect()}catch{}this.dev=this.w=this.n=null;this.emit('disconnected','Robot disconnected')}}
+import SparkMD5 from 'spark-md5';
+
+const SERVICE_UUID = '02f00000-0000-0000-0000-00000000fe00';
+const WRITE_UUID = '02f0ff01-0000-0000-0000-00000000fe00';
+const NOTIFY_UUID = '02f0ff02-0000-0000-0000-00000000fe00';
+const SALT = 'Mjgx1jAwXDBaMFcxCz3JBgNVBAYT4kJF7Rkw';
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+const bytes = (...values) => new Uint8Array(values.flat());
+const hex = values => [...values].map(value => value.toString(16).padStart(2, '0')).join(' ');
+
+export class NovaBluetooth {
+  constructor(callback = () => {}) {
+    this.callback = callback;
+    this.waiters = [];
+    this.authenticated = false;
+    this.device = null;
+    this.server = null;
+    this.writeCharacteristic = null;
+    this.notifyCharacteristic = null;
+    this.onNotification = this.onNotification.bind(this);
+    this.onDisconnected = this.onDisconnected.bind(this);
+  }
+
+  emit(type, message) {
+    this.callback({ type, message, time: new Date().toISOString() });
+  }
+
+  supported() {
+    return Boolean(navigator.bluetooth && window.isSecureContext);
+  }
+
+  wait(timeoutMs = 8000) {
+    return new Promise((resolve, reject) => {
+      const waiter = {
+        resolve: data => {
+          clearTimeout(timer);
+          resolve(data);
+        },
+        reject
+      };
+      const timer = setTimeout(() => {
+        this.waiters = this.waiters.filter(entry => entry !== waiter);
+        reject(new Error('Robot notification timeout'));
+      }, timeoutMs);
+      this.waiters.push(waiter);
+    });
+  }
+
+  onNotification(event) {
+    const data = new Uint8Array(event.target.value.buffer);
+    this.emit('rx', hex(data));
+    this.waiters.shift()?.resolve(data);
+  }
+
+  onDisconnected() {
+    this.authenticated = false;
+    this.server = null;
+    this.writeCharacteristic = null;
+    this.notifyCharacteristic = null;
+    this.emit('disconnected', 'Robot disconnected');
+  }
+
+  async write(data) {
+    this.emit('tx', hex(data));
+    if (!this.writeCharacteristic) throw new Error('Robot not connected');
+    await this.writeCharacteristic.writeValue(data);
+  }
+
+  async step(data) {
+    const responsePromise = this.wait();
+    await this.write(data);
+    return responsePromise;
+  }
+
+  async connect() {
+    if (!this.supported()) {
+      throw new Error('Web Bluetooth requires Chrome or Edge on a secure HTTPS site.');
+    }
+
+    await this.reset();
+    this.emit('info', 'Opening the Bluetooth device chooser');
+
+    // Nova robots do not always advertise their custom service UUID in the
+    // advertising packet. Filtering only by service can therefore hide a
+    // powered-on robot from the chooser. Show all nearby BLE devices and
+    // request permission for the Nova service as an optional service.
+    this.device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [SERVICE_UUID]
+    });
+
+    this.emit('info', `Selected ${this.device.name || 'unnamed Bluetooth device'}`);
+    this.device.addEventListener('gattserverdisconnected', this.onDisconnected);
+
+    try {
+      this.server = await this.device.gatt.connect();
+      const service = await this.server.getPrimaryService(SERVICE_UUID);
+      this.writeCharacteristic = await service.getCharacteristic(WRITE_UUID);
+      this.notifyCharacteristic = await service.getCharacteristic(NOTIFY_UUID);
+      await this.notifyCharacteristic.startNotifications();
+      this.notifyCharacteristic.addEventListener('characteristicvaluechanged', this.onNotification);
+
+      const first = await this.step(bytes(7, 0, 0, 0));
+      if (first.length < 19) throw new Error('Nova authentication response is too short');
+      const serial = decoder.decode(first.slice(6, 18)).replace(/\0/g, '');
+      const code = decoder.decode(first.slice(18)).replace(/\0/g, '');
+      const salted = [...serial].map(character => SALT[character.charCodeAt(0) % 36]).join('');
+      const digest = SparkMD5.hash(serial + salted + code);
+
+      await this.step(bytes(8, 32, 0, ...encoder.encode(digest)));
+      await this.step(bytes(1, 0, 0));
+      await this.step(bytes(2, 0, 0));
+      await this.write(bytes(128, 1, 0, 0));
+
+      this.authenticated = true;
+      this.emit('connected', this.device.name || 'Nova S Pro');
+      return { name: this.device.name || 'Nova S Pro' };
+    } catch (error) {
+      const selectedName = this.device?.name || 'selected device';
+      await this.reset();
+      if (error?.name === 'NotFoundError') {
+        throw new Error('The selected device does not expose the Nova S Pro Bluetooth service. Select the powered-on Pongbot/Nova device.');
+      }
+      throw new Error(`Could not connect to ${selectedName}: ${error.message}`);
+    }
+  }
+
+  rpm(ball) {
+    const spin = (ball.type === 'back' ? -1 : 1) * Math.abs(+ball.spin);
+    return [
+      Math.max(400, Math.min(7500, Math.round(970 + 630.5 * ball.speed + 342 * spin))),
+      Math.max(400, Math.min(7500, Math.round(970 + 630.5 * ball.speed - 342 * spin)))
+    ];
+  }
+
+  pack(ball) {
+    const buffer = new ArrayBuffer(24);
+    const view = new DataView(buffer);
+    const [top, bottom] = this.rpm(ball);
+    view.setUint32(0, top, true);
+    view.setUint32(4, bottom, true);
+    view.setFloat32(8, (+ball.height + 50) / 150 * 50 - 20, true);
+    view.setFloat32(12, (+ball.drop + 10) / 20 * 44 - 22, true);
+    view.setFloat32(16, +ball.bpm / 100 + 0.5, true);
+    view.setUint32(20, +ball.reps || 1, true);
+    return new Uint8Array(buffer);
+  }
+
+  packet(drill, options) {
+    let balls = drill.balls.map(ball => ({ ...ball }));
+    let mode = 0;
+    let value = Math.max(1, Math.min(10, +options.minutes || 1));
+    if (options.mode === 'balls') {
+      const target = Math.max(1, Math.min(999, +options.ballCount || 1));
+      value = Math.max(1, Math.ceil(target / balls.length));
+      mode = 1;
+      balls = balls.map(ball => ({ ...ball, reps: 1 }));
+    }
+    const payload = balls.flatMap(ball => [...this.pack(ball)]);
+    return bytes(129, 4 + payload.length, mode, value & 255, (value >> 8) & 255, 0, payload);
+  }
+
+  async start(drill, options) {
+    if (!this.authenticated) throw new Error('Connect robot first');
+    await this.write(this.packet(drill, options));
+    this.emit('started', drill.name);
+  }
+
+  pause() { return this.write(bytes(128, 1, 0, 2)); }
+  resume() { return this.write(bytes(128, 1, 0, 3)); }
+  stop() { return this.write(bytes(128, 1, 0, 1)); }
+
+  async reset() {
+    this.authenticated = false;
+    for (const waiter of this.waiters.splice(0)) waiter.reject?.(new Error('Bluetooth connection reset'));
+    try {
+      this.notifyCharacteristic?.removeEventListener('characteristicvaluechanged', this.onNotification);
+      this.device?.removeEventListener('gattserverdisconnected', this.onDisconnected);
+      if (this.device?.gatt?.connected) this.device.gatt.disconnect();
+    } catch {}
+    this.device = null;
+    this.server = null;
+    this.writeCharacteristic = null;
+    this.notifyCharacteristic = null;
+  }
+}
