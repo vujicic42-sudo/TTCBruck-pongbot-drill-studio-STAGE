@@ -1,8 +1,8 @@
 import SparkMD5 from 'spark-md5';
 
 const SERVICE_UUID = '02f00000-0000-0000-0000-00000000fe00';
-const WRITE_UUID = '02f0ff01-0000-0000-0000-00000000fe00';
-const NOTIFY_UUID = '02f0ff02-0000-0000-0000-00000000fe00';
+const WRITE_UUID = '02f00000-0000-0000-0000-00000000ff01';
+const NOTIFY_UUID = '02f00000-0000-0000-0000-00000000ff02';
 const SALT = 'Mjgx1jAwXDBaMFcxCz3JBgNVBAYT4kJF7Rkw';
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -81,10 +81,10 @@ export class NovaBluetooth {
     await this.reset();
     this.emit('info', 'Opening the Bluetooth device chooser');
 
-    // Match the proven discovery method used by the working Nova Drill Control
-    // application. The robot advertises the standard 16-bit service 0xFEFF;
-    // its private Nova GATT service (SERVICE_UUID) is discovered after connect.
-    // This keeps unrelated Bluetooth devices out of the chooser.
+    // Match the reference Nova Drill Control app:
+    // 0xFEFF is the advertised discovery service, while SERVICE_UUID is the
+    // private GATT service. The write/notify characteristic UUIDs are the
+    // separate UUIDs defined above and must match the reference exactly.
     this.device = await navigator.bluetooth.requestDevice({
       filters: [{ services: [0xfeff] }],
       optionalServices: [SERVICE_UUID]
@@ -94,10 +94,18 @@ export class NovaBluetooth {
     this.device.addEventListener('gattserverdisconnected', this.onDisconnected);
 
     try {
+      this.emit('info', 'Connecting to the selected Pongbot');
       this.server = await this.device.gatt.connect();
+
+      this.emit('info', `Discovering Nova GATT service ${SERVICE_UUID}`);
       const service = await this.server.getPrimaryService(SERVICE_UUID);
+
+      this.emit('info', `Finding write characteristic ${WRITE_UUID}`);
       this.writeCharacteristic = await service.getCharacteristic(WRITE_UUID);
+
+      this.emit('info', `Finding notification characteristic ${NOTIFY_UUID}`);
       this.notifyCharacteristic = await service.getCharacteristic(NOTIFY_UUID);
+
       await this.notifyCharacteristic.startNotifications();
       this.notifyCharacteristic.addEventListener('characteristicvaluechanged', this.onNotification);
 
@@ -120,7 +128,7 @@ export class NovaBluetooth {
       const selectedName = this.device?.name || 'selected device';
       await this.reset();
       if (error?.name === 'NotFoundError') {
-        throw new Error(`The selected device (${selectedName}) does not expose the expected Nova GATT service. Discovery is filtered by the Pongbot advertising service 0xFEFF; please power-cycle the robot and try again.`);
+        throw new Error(`Nova GATT service or characteristic not found on ${selectedName}. Check that the robot is in its normal ready state and try again. Original browser error: ${error.message}`);
       }
       throw new Error(`Could not connect to ${selectedName}: ${error.message}`);
     }
