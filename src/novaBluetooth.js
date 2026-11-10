@@ -81,12 +81,28 @@ export class NovaBluetooth {
     await this.reset();
     this.emit('info', 'Opening the Bluetooth device chooser');
 
-    // Nova robots do not always advertise their custom service UUID in the
-    // advertising packet. Filtering only by service can therefore hide a
-    // powered-on robot from the chooser. Show all nearby BLE devices and
-    // request permission for the Nova service as an optional service.
+    // Restrict the chooser to likely Pongbot/Nova devices. Some Nova S Pro
+    // firmware does not include its custom GATT service in the advertising
+    // packet, so a service-only filter can hide the robot. The name-prefix
+    // filters cover the usual Pongbot/Nova advertising names; the service
+    // filter also supports firmware that advertises the custom service.
+    // requestDevice treats filter entries as alternatives (OR).
     this.device = await navigator.bluetooth.requestDevice({
-      acceptAllDevices: true,
+      filters: [
+        { namePrefix: 'PONGBOT' },
+        { namePrefix: 'Pongbot' },
+        { namePrefix: 'pongbot' },
+        { namePrefix: 'PONG' },
+        { namePrefix: 'Pong' },
+        { namePrefix: 'pong' },
+        { namePrefix: 'NOVA' },
+        { namePrefix: 'Nova' },
+        { namePrefix: 'nova' },
+        { namePrefix: 'ROBBI' },
+        { namePrefix: 'Robbi' },
+        { namePrefix: 'robbi' },
+        { services: [SERVICE_UUID] }
+      ],
       optionalServices: [SERVICE_UUID]
     });
 
@@ -120,7 +136,7 @@ export class NovaBluetooth {
       const selectedName = this.device?.name || 'selected device';
       await this.reset();
       if (error?.name === 'NotFoundError') {
-        throw new Error('The selected device does not expose the Nova S Pro Bluetooth service. Select the powered-on Pongbot/Nova device.');
+        throw new Error('No compatible Pongbot/Nova device was selected, or it does not expose the Nova S Pro Bluetooth service. Check that the robot is powered on and that its Bluetooth name begins with PONGBOT or NOVA.');
       }
       throw new Error(`Could not connect to ${selectedName}: ${error.message}`);
     }
