@@ -81,28 +81,12 @@ export class NovaBluetooth {
     await this.reset();
     this.emit('info', 'Opening the Bluetooth device chooser');
 
-    // Restrict the chooser to likely Pongbot/Nova devices. Some Nova S Pro
-    // firmware does not include its custom GATT service in the advertising
-    // packet, so a service-only filter can hide the robot. The name-prefix
-    // filters cover the usual Pongbot/Nova advertising names; the service
-    // filter also supports firmware that advertises the custom service.
-    // requestDevice treats filter entries as alternatives (OR).
+    // Match the proven discovery method used by the working Nova Drill Control
+    // application. The robot advertises the standard 16-bit service 0xFEFF;
+    // its private Nova GATT service (SERVICE_UUID) is discovered after connect.
+    // This keeps unrelated Bluetooth devices out of the chooser.
     this.device = await navigator.bluetooth.requestDevice({
-      filters: [
-        { namePrefix: 'PONGBOT' },
-        { namePrefix: 'Pongbot' },
-        { namePrefix: 'pongbot' },
-        { namePrefix: 'PONG' },
-        { namePrefix: 'Pong' },
-        { namePrefix: 'pong' },
-        { namePrefix: 'NOVA' },
-        { namePrefix: 'Nova' },
-        { namePrefix: 'nova' },
-        { namePrefix: 'ROBBI' },
-        { namePrefix: 'Robbi' },
-        { namePrefix: 'robbi' },
-        { services: [SERVICE_UUID] }
-      ],
+      filters: [{ services: [0xfeff] }],
       optionalServices: [SERVICE_UUID]
     });
 
@@ -136,7 +120,7 @@ export class NovaBluetooth {
       const selectedName = this.device?.name || 'selected device';
       await this.reset();
       if (error?.name === 'NotFoundError') {
-        throw new Error('No compatible Pongbot/Nova device was selected, or it does not expose the Nova S Pro Bluetooth service. Check that the robot is powered on and that its Bluetooth name begins with PONGBOT or NOVA.');
+        throw new Error(`The selected device (${selectedName}) does not expose the expected Nova GATT service. Discovery is filtered by the Pongbot advertising service 0xFEFF; please power-cycle the robot and try again.`);
       }
       throw new Error(`Could not connect to ${selectedName}: ${error.message}`);
     }
