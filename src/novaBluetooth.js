@@ -185,10 +185,9 @@ export class NovaBluetooth {
     let modeByte, modeValue;
     if (mode === 'balls') {
       const target = Math.max(1, Math.min(999, Math.round(Number(options.ballCount) || 1)));
-      const baseReps = Math.floor(target / packetBalls.length);
-      let remainder = target % packetBalls.length;
-      packetBalls = packetBalls.map(ball => ({ ...ball, reps: baseReps + (remainder-- > 0 ? 1 : 0) }));
-      modeByte = 0x01; modeValue = 1;
+      const cycles = Math.max(1, Math.ceil(target / packetBalls.length));
+      packetBalls = packetBalls.map(ball => ({ ...ball, reps: 1 }));
+      modeByte = 0x01; modeValue = cycles;
     } else {
       modeByte = 0x00; modeValue = Math.max(1, Math.min(10, Math.round(Number(options.minutes) || 1)));
     }
@@ -203,7 +202,8 @@ export class NovaBluetooth {
     if (!this.authenticated) throw new Error('Connect robot first');
     const mode = options?.mode === 'balls' ? 'balls' : 'time';
     await this.write(this.packet(drill, options));
-    const detail = mode === 'balls' ? `${Math.max(1, Math.min(999, Math.round(Number(options.ballCount) || 1)))} balls` : `${Math.max(1, Math.min(10, Math.round(Number(options.minutes) || 1)))} minute(s)`;
+    const target = Math.max(1, Math.min(999, Math.round(Number(options.ballCount) || 1))); const actual = Math.ceil(target / drill.balls.length) * drill.balls.length;
+    const detail = mode === 'balls' ? `${actual} balls in sequence` : `${Math.max(1, Math.min(10, Math.round(Number(options.minutes) || 1)))} minute(s)`;
     this.emit('started', `Started ${drill.name} for ${detail}`);
   }
 

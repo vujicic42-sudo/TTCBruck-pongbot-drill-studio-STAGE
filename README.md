@@ -1,21 +1,16 @@
-# TTCBruck Pongbot Drill Studio STAGE v1.16
+# TTCBruck Pongbot Drill Studio STAGE v1.17
 
-Role-based administration for cloud coaching profiles.
+Built from the uploaded current v1.16.1 repository files.
 
-## Administrator
-`vujic42@gmail.com` is bootstrapped as the STAGE admin. The preferred deployment configuration is also to set the server-side Pages environment variable `ADMIN_EMAIL=vujic42@gmail.com`.
-
-## Capabilities
-- Coaches continue to see and save only their own D1 profile.
-- The admin can load every coaching profile under Settings.
-- The admin can open another profile, inspect drills and saved filters, edit the profile library, and explicitly save it.
-- A persistent orange ADMIN VIEW banner identifies the selected coach and provides Return to my profile.
-- Admin profile views and updates are written to `audit_log`.
-- `/api/admin` returns HTTP 403 for normal coaches.
+## Changes
+- 15-second cloud-save timeout, overlapping-save protection, offline detection, unload warning, retry through Save, and explicit success/failure status.
+- D1 `user_event_log` for profile load, save, CSV, Bluetooth and robot events; Admin Settings can load the latest 100 events.
+- D1-backed `My Recent Exercises` collection. Drag a library drill into the collection to add a reference; reorder collection entries by drag/drop; removing an entry never deletes the drill.
+- Ball-count mode repeats the complete flow with `reps=1` per row and cycle count in the Nova packet. Timer protocol is unchanged.
+- CSV Import moved to Settings.
+- Export all drills to a timestamped robot-compatible CSV is available in Settings and works without cloud save.
 
 ## Required migration
-Run `migrations/0002_admin_roles.sql` once in `pongbot-stage-db` before deploying v1.16.
+Run `migrations/0003_reliability_collections.sql` once against `pongbot-stage-db` before deployment.
 
-## v1.16.1 Bluetooth discovery fix
-
-The chooser now uses `acceptAllDevices: true` with the Nova service in `optionalServices`. Some Nova S Pro units do not advertise the custom service UUID in their BLE advertising packet, so the former service-only filter could hide a powered-on robot completely. Connection cleanup, notification waiter cleanup, selection diagnostics, and non-Nova-device errors were also improved. No cloud-profile, admin, D1, UI, timer, count, or drill behavior was changed.
+No Wrangler file is included. Cloudflare dashboard remains the source for `DB`, `ACCESS_DOMAIN`, `ACCESS_AUD`, and `ADMIN_EMAIL`.
