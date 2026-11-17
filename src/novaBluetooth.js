@@ -202,8 +202,7 @@ export class NovaBluetooth {
     if (!this.authenticated) throw new Error('Connect robot first');
     const mode = options?.mode === 'balls' ? 'balls' : 'time';
     await this.write(this.packet(drill, options));
-    const target = Math.max(1, Math.min(999, Math.round(Number(options.ballCount) || 1))); const actual = Math.ceil(target / drill.balls.length) * drill.balls.length;
-    const detail = mode === 'balls' ? `${actual} balls in sequence` : `${Math.max(1, Math.min(10, Math.round(Number(options.minutes) || 1)))} minute(s)`;
+    const target = Math.max(1, Math.min(999, Math.round(Number(options.ballCount) || 1))); const actual = Math.ceil(target / drill.balls.length) * drill.balls.length; const detail = mode === 'balls' ? `${actual} balls in sequence` : `${Math.max(1, Math.min(10, Math.round(Number(options.minutes) || 1)))} minute(s)`;
     this.emit('started', `Started ${drill.name} for ${detail}`);
   }
 
