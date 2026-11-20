@@ -1,14 +1,6 @@
-# TTCBruck Pongbot Drill Studio STAGE v1.20
+# TTCBruck Pongbot Drill Studio STAGE v1.21
 
-Graphical and metadata update based on uploaded v1.19.1 files. Bluetooth and robot functionality are unchanged.
-
-Playstyles:
-- GER: Unterschnitt, Konter, Topspin
-- ENG: Push, Drive, Topspin
-- Legacy Loop UNT / Loop / Topspin auf Unterschnitt normalize to Push
-- Legacy Blockball / Topspin Rally normalize to Loop OB / Topspin
-- Legacy Konterball normalizes to Drive / Konter
-
-Edit metadata is stacked: Name, Trainingsziel/Training focus, Notizen/Notes, Level. Notes are stored inside drill JSON, therefore no D1 schema migration is required.
-
-On wide desktop screens, the drill library and section organizer can be resized horizontally. Coach sections can be resized vertically. Drill rows expand according to content and cannot overlap.
+- Replaces independent CSS resize behavior with coordinated splitters. Widening the drill library automatically reduces the adjacent section organizer; widening the section organizer reduces the main workspace. Minimum widths prevent overlap.
+- Name, Training focus, Notes and Level are strictly stacked and aligned.
+- Time mode now displays a visible MM:SS countdown after Send & Start. Changing duration resets the display; Stop pauses the visible countdown.
+- Bluetooth source and robot packet implementation remain unchanged from v1.20.
