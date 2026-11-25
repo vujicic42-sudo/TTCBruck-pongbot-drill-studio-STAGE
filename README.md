@@ -1,15 +1,11 @@
-# TTCBruck Pongbot Drill Studio STAGE v1.22 incremental save patch
+# STAGE v1.22.1 remaining-ball counter patch
 
-Upload these files over the matching paths in the current v1.21 repository.
+This patch changes only the Team session UI and local visual countdown state.
 
-## Behavior
-- Existing rows are read and compared server-side.
-- Only genuinely inserted, changed, deleted, or reordered drills, filters, sections, and section items are written.
-- Saving without changes performs no content write and creates no success log.
-- Authentication no longer updates the profile row on every API call.
-- Successful incremental saves create one compact server log only when data changed.
-- Client routine success/start logs are suppressed; failures/timeouts remain available.
-- Admin profile viewing no longer writes an audit row; an admin edit writes one audit row only when data changed.
-- UI reports the exact counts returned by the API.
-
-No D1 migration is required. Bluetooth and CSS are included unchanged from the uploaded v1.21 files.
+- Ball-count mode shows Remaining balls / Verbleibende Bälle.
+- The counter starts only after Send & Start succeeds.
+- It follows the drill ball sequence and each ball's BPM as a browser-side estimate.
+- Stop freezes the displayed count.
+- Switching to Time stops the displayed ball counter.
+- For targets not divisible by drill length, the effective complete-cycle total is displayed.
+- No changes to novaBluetooth.js, robot packets, D1, cloud profiles, incremental saving, or migrations.
